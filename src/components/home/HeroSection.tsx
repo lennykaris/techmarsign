@@ -1,93 +1,168 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, Users, BookOpen, Award } from "lucide-react";
+import { GraduationCap, BookOpen, Star, Users } from "lucide-react";
+import heroImage from "@/assets/hero-students.jpg";
 
-const stats = [
-  { icon: Users, value: "2,500+", label: "Students Trained" },
-  { icon: BookOpen, value: "50+", label: "Courses Available" },
-  { icon: Award, value: "95%", label: "Success Rate" },
+const avatars = [
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
 ];
 
 export function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-gradient-hero text-primary-foreground">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-secondary rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent rounded-full blur-3xl" />
+    <section className="relative overflow-hidden bg-gradient-hero min-h-[90vh] flex items-center">
+      {/* Decorative Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Squiggly line left */}
+        <svg
+          className="absolute left-8 top-32 w-16 h-16 text-secondary/30"
+          viewBox="0 0 64 64"
+          fill="none"
+        >
+          <path
+            d="M8 32C16 24 24 40 32 32C40 24 48 40 56 32"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+        </svg>
+
+        {/* Star icon */}
+        <Star className="absolute right-[45%] top-24 w-8 h-8 text-accent/60" />
+
+        {/* Dashed curved line top right */}
+        <svg
+          className="absolute right-0 top-0 w-96 h-96 text-secondary/20"
+          viewBox="0 0 384 384"
+          fill="none"
+        >
+          <path
+            d="M384 0C384 212 212 384 0 384"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeDasharray="8 8"
+          />
+        </svg>
+
+        {/* Bottom squiggly line */}
+        <svg
+          className="absolute left-32 bottom-24 w-20 h-20 text-secondary/30"
+          viewBox="0 0 80 80"
+          fill="none"
+        >
+          <path
+            d="M8 40C20 32 28 48 40 40C52 32 60 48 72 40"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+        </svg>
+
+        {/* Blue curved shape behind image */}
+        <div className="absolute right-0 top-0 w-[55%] h-full">
+          <svg
+            className="absolute right-0 top-0 h-full w-full"
+            viewBox="0 0 600 700"
+            fill="none"
+            preserveAspectRatio="xMaxYMid slice"
+          >
+            <path
+              d="M200 0H600V700H200C200 700 100 600 100 350C100 100 200 0 200 0Z"
+              className="fill-secondary"
+            />
+          </svg>
+        </div>
       </div>
 
-      <div className="container mx-auto px-4 py-20 lg:py-32 relative">
+      <div className="container mx-auto px-4 py-16 lg:py-24 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Content */}
-          <div className="space-y-8 animate-slide-up">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20">
-              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
-              <span className="text-sm font-medium">Enrollments Open for 2025</span>
-            </div>
+          <div className="space-y-6 animate-slide-up">
+            <span className="text-secondary font-medium text-lg">
+              Online E-Learning Courses
+            </span>
 
-            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-              Master the Skills of{" "}
-              <span className="text-secondary">Tomorrow,</span>{" "}
-              <span className="text-accent">Today</span>
+            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-primary-foreground">
+              <span className="text-secondary">Creating</span> a Better Future{" "}
+              <br className="hidden md:block" />
+              through Education
             </h1>
 
-            <p className="text-lg md:text-xl text-primary-foreground/80 max-w-xl leading-relaxed">
-              Industry-ready training in Web Development, Digital Marketing, and 
-              Graphic Design. Learn from experts, build real projects, and launch 
-              your tech career.
+            <p className="text-lg text-primary-foreground/70 max-w-md leading-relaxed">
+              Industry-ready training in Web Development, Digital Marketing, and
+              Graphic Design. Learn from experts and launch your tech career.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button variant="hero" size="xl" asChild>
-                <Link to="/courses">
-                  Explore Courses
-                  <ArrowRight className="h-5 w-5" />
-                </Link>
+            <div className="flex flex-col sm:flex-row gap-4 pt-2">
+              <Button
+                size="lg"
+                className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold px-8 rounded-full"
+                asChild
+              >
+                <Link to="/courses">All Courses</Link>
               </Button>
-              <Button variant="hero-outline" size="xl" asChild>
-                <Link to="/about">
-                  <Play className="h-5 w-5" />
-                  Watch Our Story
-                </Link>
+              <Button
+                variant="outline"
+                size="lg"
+                className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 font-semibold px-8 rounded-full"
+                asChild
+              >
+                <Link to="/contact">Contact Us</Link>
               </Button>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-6 pt-8 border-t border-primary-foreground/10">
-              {stats.map((stat) => (
-                <div key={stat.label} className="text-center sm:text-left">
-                  <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
-                    <stat.icon className="h-5 w-5 text-secondary" />
-                    <span className="font-display text-2xl md:text-3xl font-bold">
-                      {stat.value}
-                    </span>
-                  </div>
-                  <span className="text-sm text-primary-foreground/60">{stat.label}</span>
-                </div>
-              ))}
+            {/* Avatar Stack */}
+            <div className="flex items-center gap-4 pt-4">
+              <div className="flex -space-x-3">
+                {avatars.map((avatar, index) => (
+                  <img
+                    key={index}
+                    src={avatar}
+                    alt={`Student ${index + 1}`}
+                    className="w-10 h-10 rounded-full border-2 border-primary object-cover"
+                  />
+                ))}
+              </div>
+              <span className="text-primary-foreground font-medium">
+                24k + Happy Students
+              </span>
             </div>
           </div>
 
-          {/* Hero Image/Illustration */}
-          <div className="relative hidden lg:block animate-float">
-            <div className="relative z-10 p-8">
-              <div className="aspect-square rounded-3xl bg-gradient-to-br from-secondary/20 to-accent/20 backdrop-blur-lg border border-primary-foreground/10 flex items-center justify-center">
-                <div className="grid grid-cols-2 gap-4 p-8">
-                  <div className="space-y-4">
-                    <div className="h-32 rounded-2xl bg-secondary/30 backdrop-blur-sm animate-pulse-slow" />
-                    <div className="h-24 rounded-2xl bg-accent/30 backdrop-blur-sm" />
-                  </div>
-                  <div className="space-y-4 pt-8">
-                    <div className="h-24 rounded-2xl bg-primary-foreground/10 backdrop-blur-sm" />
-                    <div className="h-32 rounded-2xl bg-secondary/20 backdrop-blur-sm animate-pulse-slow" />
-                  </div>
+          {/* Hero Image */}
+          <div className="relative hidden lg:block">
+            {/* Main Image */}
+            <div className="relative z-10">
+              <img
+                src={heroImage}
+                alt="Students learning together"
+                className="w-full max-w-lg ml-auto rounded-3xl shadow-2xl object-cover aspect-[4/5]"
+              />
+
+              {/* Floating Stats Card - Top */}
+              <div className="absolute -left-8 top-16 bg-card rounded-2xl shadow-lg p-4 flex items-center gap-3 animate-float">
+                <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center">
+                  <GraduationCap className="w-6 h-6 text-secondary" />
+                </div>
+                <div>
+                  <p className="font-display font-bold text-xl text-foreground">2.5k</p>
+                  <p className="text-sm text-muted-foreground">Total Students</p>
+                </div>
+              </div>
+
+              {/* Floating Stats Card - Bottom */}
+              <div className="absolute -right-4 bottom-8 bg-card rounded-2xl shadow-lg p-4 flex items-center gap-3 animate-float" style={{ animationDelay: "1s" }}>
+                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-accent" />
+                </div>
+                <div>
+                  <p className="font-display font-bold text-xl text-foreground">50+</p>
+                  <p className="text-sm text-muted-foreground">Total Courses</p>
                 </div>
               </div>
             </div>
-            {/* Decorative elements */}
-            <div className="absolute top-4 right-4 w-20 h-20 rounded-2xl bg-accent/40 blur-xl" />
-            <div className="absolute bottom-8 left-0 w-24 h-24 rounded-full bg-secondary/30 blur-2xl" />
           </div>
         </div>
       </div>
