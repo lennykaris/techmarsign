@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BookOpen, GraduationCap, Users, LogOut, User } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BookOpen, GraduationCap, Users, LogOut, User, FileText, ClipboardList } from "lucide-react";
+import { LessonViewer } from "@/components/student/LessonViewer";
+import { AssignmentViewer } from "@/components/student/AssignmentViewer";
 
 interface Profile {
   full_name: string;
@@ -175,79 +178,120 @@ export default function StudentDashboard() {
           </Card>
         </div>
 
-        {/* Enrolled Courses */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>My Courses</CardTitle>
-            <CardDescription>Courses you are currently enrolled in</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p className="text-muted-foreground">Loading...</p>
-            ) : enrollments.length === 0 ? (
-              <div className="text-center py-8">
-                <BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-4">You haven't enrolled in any courses yet.</p>
-                <Button onClick={() => navigate("/courses")}>Browse Courses</Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {enrollments.map((enrollment) => (
-                  <div
-                    key={enrollment.id}
-                    className="flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold">{enrollment.course.title}</h3>
-                        <Badge className={getStatusColor(enrollment.status)}>
-                          {enrollment.status}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Category: {enrollment.course.category} • Phase {enrollment.current_phase}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Progress value={enrollment.progress} className="flex-1 h-2" />
-                        <span className="text-sm text-muted-foreground">{enrollment.progress}%</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Tabs for Learning Content */}
+        <Tabs defaultValue="courses" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="courses" className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" /> Courses
+            </TabsTrigger>
+            <TabsTrigger value="lessons" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Lessons
+            </TabsTrigger>
+            <TabsTrigger value="assignments" className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4" /> Assignments
+            </TabsTrigger>
+            <TabsTrigger value="tutors" className="flex items-center gap-2">
+              <Users className="h-4 w-4" /> Tutors
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Tutors */}
-        <Card>
-          <CardHeader>
-            <CardTitle>My Tutors</CardTitle>
-            <CardDescription>Tutors assigned to your courses</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {tutors.length === 0 ? (
-              <p className="text-muted-foreground">No tutors assigned yet.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {tutors.map((tutor) => (
-                  <div key={tutor.tutor_id} className="flex items-center gap-3 p-3 border rounded-lg">
-                    <Avatar>
-                      <AvatarImage src={tutor.profile?.avatar_url || ""} />
-                      <AvatarFallback className="bg-secondary">
-                        {tutor.profile ? getInitials(tutor.profile.full_name) : "T"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{tutor.profile?.full_name}</p>
-                      <p className="text-sm text-muted-foreground">{tutor.profile?.email}</p>
-                    </div>
+          <TabsContent value="courses">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Courses</CardTitle>
+                <CardDescription>Courses you are currently enrolled in</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <p className="text-muted-foreground">Loading...</p>
+                ) : enrollments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground mb-4">You haven't enrolled in any courses yet.</p>
+                    <Button onClick={() => navigate("/courses")}>Browse Courses</Button>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {enrollments.map((enrollment) => (
+                      <div
+                        key={enrollment.id}
+                        className="flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold">{enrollment.course.title}</h3>
+                            <Badge className={getStatusColor(enrollment.status)}>
+                              {enrollment.status}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Category: {enrollment.course.category} • Phase {enrollment.current_phase}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Progress value={enrollment.progress} className="flex-1 h-2" />
+                            <span className="text-sm text-muted-foreground">{enrollment.progress}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="lessons">
+            <LessonViewer 
+              courses={enrollments.map((e) => ({ 
+                id: e.course.id, 
+                title: e.course.title, 
+                current_phase: e.current_phase 
+              }))}
+              onProgressUpdate={fetchData}
+            />
+          </TabsContent>
+
+          <TabsContent value="assignments">
+            <AssignmentViewer 
+              courses={enrollments.map((e) => ({ 
+                id: e.course.id, 
+                title: e.course.title, 
+                current_phase: e.current_phase 
+              }))}
+            />
+          </TabsContent>
+
+          <TabsContent value="tutors">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Tutors</CardTitle>
+                <CardDescription>Tutors assigned to your courses</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {tutors.length === 0 ? (
+                  <p className="text-muted-foreground">No tutors assigned yet.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {tutors.map((tutor) => (
+                      <div key={tutor.tutor_id} className="flex items-center gap-3 p-3 border rounded-lg">
+                        <Avatar>
+                          <AvatarImage src={tutor.profile?.avatar_url || ""} />
+                          <AvatarFallback className="bg-secondary">
+                            {tutor.profile ? getInitials(tutor.profile.full_name) : "T"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{tutor.profile?.full_name}</p>
+                          <p className="text-sm text-muted-foreground">{tutor.profile?.email}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </PageLayout>
   );
