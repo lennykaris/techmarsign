@@ -7,7 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BookOpen, Users, LogOut, User, GraduationCap } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BookOpen, Users, LogOut, User, GraduationCap, FileText, ClipboardList } from "lucide-react";
+import { LessonManager } from "@/components/tutor/LessonManager";
+import { AssignmentManager } from "@/components/tutor/AssignmentManager";
+import { SubmissionGrader } from "@/components/tutor/SubmissionGrader";
 
 interface Profile {
   full_name: string;
@@ -223,43 +227,74 @@ export default function TutorDashboard() {
           </CardContent>
         </Card>
 
-        {/* Students */}
-        <Card>
-          <CardHeader>
-            <CardTitle>My Students</CardTitle>
-            <CardDescription>Students enrolled in your courses</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {students.length === 0 ? (
-              <p className="text-muted-foreground">No students enrolled yet.</p>
-            ) : (
-              <div className="space-y-4">
-                {students.map((student, idx) => (
-                  <div
-                    key={`${student.student_id}-${idx}`}
-                    className="flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-lg"
-                  >
-                    <Avatar>
-                      <AvatarImage src={student.profile?.avatar_url || ""} />
-                      <AvatarFallback className="bg-secondary">
-                        {student.profile ? getInitials(student.profile.full_name) : "S"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-medium">{student.profile?.full_name}</h3>
-                        <Badge className={getStatusColor(student.status)}>{student.status}</Badge>
+        {/* Tabs for Content Management */}
+        <Tabs defaultValue="students" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="students" className="flex items-center gap-2">
+              <Users className="h-4 w-4" /> Students
+            </TabsTrigger>
+            <TabsTrigger value="lessons" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Lessons
+            </TabsTrigger>
+            <TabsTrigger value="assignments" className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4" /> Assignments
+            </TabsTrigger>
+            <TabsTrigger value="submissions" className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4" /> Submissions
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="students">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Students</CardTitle>
+                <CardDescription>Students enrolled in your courses</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {students.length === 0 ? (
+                  <p className="text-muted-foreground">No students enrolled yet.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {students.map((student, idx) => (
+                      <div
+                        key={`${student.student_id}-${idx}`}
+                        className="flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-lg"
+                      >
+                        <Avatar>
+                          <AvatarImage src={student.profile?.avatar_url || ""} />
+                          <AvatarFallback className="bg-secondary">
+                            {student.profile ? getInitials(student.profile.full_name) : "S"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-medium">{student.profile?.full_name}</h3>
+                            <Badge className={getStatusColor(student.status)}>{student.status}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {student.course_title} • Phase {student.current_phase} • {student.progress}% complete
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {student.course_title} • Phase {student.current_phase} • {student.progress}% complete
-                      </p>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="lessons">
+            <LessonManager courses={assignedCourses.map((ac) => ({ id: ac.course.id, title: ac.course.title }))} />
+          </TabsContent>
+
+          <TabsContent value="assignments">
+            <AssignmentManager courses={assignedCourses.map((ac) => ({ id: ac.course.id, title: ac.course.title }))} />
+          </TabsContent>
+
+          <TabsContent value="submissions">
+            <SubmissionGrader courses={assignedCourses.map((ac) => ({ id: ac.course.id, title: ac.course.title }))} />
+          </TabsContent>
+        </Tabs>
       </div>
     </PageLayout>
   );
