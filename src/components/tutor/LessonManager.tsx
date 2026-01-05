@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Video, FileText } from "lucide-react";
+import { Plus, Edit, Trash2, Video, FileText, Upload, Paperclip, X } from "lucide-react";
 import { toast } from "sonner";
+
+interface LessonMaterial {
+  id: string;
+  lesson_id: string;
+  file_name: string;
+  file_url: string;
+  file_type: string | null;
+  file_size: number | null;
+}
 
 interface Lesson {
   id: string;
@@ -18,6 +27,7 @@ interface Lesson {
   content: string | null;
   video_url: string | null;
   order_index: number;
+  materials?: LessonMaterial[];
 }
 
 interface Course {
@@ -34,6 +44,10 @@ export function LessonManager({ courses }: LessonManagerProps) {
   const [selectedCourse, setSelectedCourse] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [materialsDialogOpen, setMaterialsDialogOpen] = useState(false);
+  const [selectedLessonForMaterials, setSelectedLessonForMaterials] = useState<Lesson | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     title: "",
     content: "",
@@ -60,7 +74,19 @@ export function LessonManager({ courses }: LessonManagerProps) {
       toast.error("Failed to fetch lessons");
       return;
     }
-    setLessons(data || []);
+
+    // Fetch materials for each lesson
+    const lessonsWithMaterials = await Promise.all(
+      (data || []).map(async (lesson) => {
+        const { data: materials } = await supabase
+          .from("lesson_materials")
+          .select("*")
+          .eq("lesson_id", lesson.id);
+        return { ...lesson, materials: materials || [] };
+      })
+    );
+
+    setLessons(lessonsWithMaterials);
   };
 
   const handleSubmit = async () => {
@@ -131,6 +157,99 @@ export function LessonManager({ courses }: LessonManagerProps) {
       order_index: lesson.order_index
     });
     setIsDialogOpen(true);
+  };
+
+  const openMaterialsDialog = (lesson: Lesson) => {
+    setSelectedLessonForMaterials(lesson);
+    setMaterialsDialogOpen(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !selectedLessonForMaterials) return;
+    
+    const file = e.target.files[0];
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    
+    if (file.size > maxSize) {
+      toast.error("File size must be less than 50MB");
+      return;
+    }
+
+    setUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${selectedLessonForMaterials.id}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("lesson-materials")
+      .upload(filePath, file);
+
+    if (uploadError) {
+      toast.error("Failed to upload file");
+      setUploading(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("lesson-materials")
+      .getPublicUrl(filePath);
+
+    const { error: insertError } = await supabase
+      .from("lesson_materials")
+      .insert({
+        lesson_id: selectedLessonForMaterials.id,
+        file_name: file.name,
+        file_url: urlData.publicUrl,
+        file_type: file.type,
+        file_size: file.size
+      });
+
+    if (insertError) {
+      toast.error("Failed to save material record");
+    } else {
+      toast.success("Material uploaded successfully");
+      fetchLessons();
+      // Update selected lesson materials
+      const { data: materials } = await supabase
+        .from("lesson_materials")
+        .select("*")
+        .eq("lesson_id", selectedLessonForMaterials.id);
+      setSelectedLessonForMaterials({ ...selectedLessonForMaterials, materials: materials || [] });
+    }
+
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleDeleteMaterial = async (materialId: string, fileUrl: string) => {
+    // Extract file path from URL
+    const urlParts = fileUrl.split("/lesson-materials/");
+    if (urlParts[1]) {
+      await supabase.storage.from("lesson-materials").remove([urlParts[1]]);
+    }
+
+    const { error } = await supabase.from("lesson_materials").delete().eq("id", materialId);
+    
+    if (error) {
+      toast.error("Failed to delete material");
+      return;
+    }
+
+    toast.success("Material deleted");
+    fetchLessons();
+    if (selectedLessonForMaterials) {
+      const { data: materials } = await supabase
+        .from("lesson_materials")
+        .select("*")
+        .eq("lesson_id", selectedLessonForMaterials.id);
+      setSelectedLessonForMaterials({ ...selectedLessonForMaterials, materials: materials || [] });
+    }
+  };
+
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return "Unknown size";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
@@ -239,6 +358,9 @@ export function LessonManager({ courses }: LessonManagerProps) {
                   </div>
                 </div>
                 <div className="flex gap-1">
+                  <Button size="icon" variant="ghost" onClick={() => openMaterialsDialog(lesson)}>
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => openEditDialog(lesson)}>
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -251,6 +373,69 @@ export function LessonManager({ courses }: LessonManagerProps) {
           </div>
         )}
       </CardContent>
+
+      {/* Materials Dialog */}
+      <Dialog open={materialsDialogOpen} onOpenChange={setMaterialsDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Lesson Materials: {selectedLessonForMaterials?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileUpload}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.mp4,.mp3,.zip"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {uploading ? "Uploading..." : "Upload Material"}
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1 text-center">
+                PDF, DOC, PPT, XLS, MP4, MP3, ZIP (max 50MB)
+              </p>
+            </div>
+
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {selectedLessonForMaterials?.materials?.length === 0 ? (
+                <p className="text-muted-foreground text-sm text-center py-4">No materials uploaded yet</p>
+              ) : (
+                selectedLessonForMaterials?.materials?.map((material) => (
+                  <div key={material.id} className="flex items-center justify-between p-2 border rounded">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <a
+                          href={material.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-primary hover:underline truncate block"
+                        >
+                          {material.file_name}
+                        </a>
+                        <p className="text-xs text-muted-foreground">{formatFileSize(material.file_size)}</p>
+                      </div>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleDeleteMaterial(material.id, material.file_url)}
+                    >
+                      <X className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

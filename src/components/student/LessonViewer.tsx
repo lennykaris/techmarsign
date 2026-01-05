@@ -5,8 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { CheckCircle, Circle, Video, FileText, Play } from "lucide-react";
+import { CheckCircle, Circle, Video, FileText, Play, Paperclip, Download } from "lucide-react";
 import { toast } from "sonner";
+
+interface LessonMaterial {
+  id: string;
+  file_name: string;
+  file_url: string;
+  file_type: string | null;
+  file_size: number | null;
+}
 
 interface Lesson {
   id: string;
@@ -16,6 +24,7 @@ interface Lesson {
   content: string | null;
   video_url: string | null;
   order_index: number;
+  materials?: LessonMaterial[];
 }
 
 interface LessonProgress {
@@ -61,15 +70,33 @@ export function LessonViewer({ courses, onProgressUpdate }: LessonViewerProps) {
       return;
     }
 
+    // Fetch materials for each lesson
+    const lessonsWithMaterials = await Promise.all(
+      (data || []).map(async (lesson) => {
+        const { data: materials } = await supabase
+          .from("lesson_materials")
+          .select("*")
+          .eq("lesson_id", lesson.id);
+        return { ...lesson, materials: materials || [] };
+      })
+    );
+
     // Group lessons by course
     const grouped: Record<string, Lesson[]> = {};
-    (data || []).forEach((lesson) => {
+    lessonsWithMaterials.forEach((lesson) => {
       if (!grouped[lesson.course_id]) {
         grouped[lesson.course_id] = [];
       }
       grouped[lesson.course_id].push(lesson);
     });
     setLessons(grouped);
+  };
+
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   const fetchProgress = async () => {
@@ -201,6 +228,33 @@ export function LessonViewer({ courses, onProgressUpdate }: LessonViewerProps) {
                                     {lesson.content}
                                   </div>
                                 )}
+                                
+                                {/* Lesson Materials */}
+                                {lesson.materials && lesson.materials.length > 0 && (
+                                  <div className="mb-3">
+                                    <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                                      <Paperclip className="h-3 w-3" /> Materials
+                                    </p>
+                                    <div className="space-y-1">
+                                      {lesson.materials.map((material) => (
+                                        <a
+                                          key={material.id}
+                                          href={material.file_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex items-center gap-2 p-2 bg-muted/30 rounded text-sm hover:bg-muted transition-colors"
+                                        >
+                                          <Download className="h-4 w-4 text-primary shrink-0" />
+                                          <span className="truncate flex-1">{material.file_name}</span>
+                                          <span className="text-xs text-muted-foreground shrink-0">
+                                            {formatFileSize(material.file_size)}
+                                          </span>
+                                        </a>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
                                 {!completed && (
                                   <Button size="sm" onClick={() => markLessonComplete(lesson.id)}>
                                     <CheckCircle className="h-4 w-4 mr-1" /> Mark Complete
