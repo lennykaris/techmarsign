@@ -186,14 +186,24 @@ export function SubmissionGrader({ courses }: SubmissionGraderProps) {
                     {submission.submission_text}
                   </div>
                 )}
+                {submission.file_url && (
+                  <a href={submission.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary text-sm mb-2 hover:underline">
+                    <FileText className="h-4 w-4" /> View attached file
+                  </a>
+                )}
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">
                     Submitted: {new Date(submission.submitted_at).toLocaleDateString()}
                   </p>
                   {submission.status === "graded" ? (
-                    <p className="text-sm font-medium text-primary">
-                      Score: {submission.score}/{submission.assignment?.max_score}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-primary">
+                        Score: {submission.score}/{submission.assignment?.max_score}
+                      </p>
+                      <Button size="sm" variant="outline" onClick={() => openGradeDialog(submission)}>
+                        Edit
+                      </Button>
+                    </div>
                   ) : (
                     <Button size="sm" onClick={() => openGradeDialog(submission)}>
                       Grade
