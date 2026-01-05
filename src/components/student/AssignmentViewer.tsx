@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ClipboardList, Clock, CheckCircle, Send, MessageSquare } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle, Send, MessageSquare, Upload, FileText, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Assignment {
@@ -25,6 +26,7 @@ interface Submission {
   id: string;
   assignment_id: string;
   submission_text: string | null;
+  file_url: string | null;
   score: number | null;
   feedback: string | null;
   status: string;
@@ -47,7 +49,10 @@ export function AssignmentViewer({ courses }: AssignmentViewerProps) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [submissionText, setSubmissionText] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [viewingFeedback, setViewingFeedback] = useState<Submission | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (courses.length > 0 && user) {
@@ -93,30 +98,76 @@ export function AssignmentViewer({ courses }: AssignmentViewerProps) {
     return submissions.find((s) => s.assignment_id === assignmentId);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be less than 10MB");
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!user || !selectedAssignment || !submissionText.trim()) {
-      toast.error("Please enter your submission");
+    if (!user || !selectedAssignment) {
       return;
     }
 
-    const { error } = await supabase
-      .from("assignment_submissions")
-      .insert({
-        assignment_id: selectedAssignment.id,
-        student_id: user.id,
-        submission_text: submissionText.trim(),
-        status: "pending"
-      });
-
-    if (error) {
-      toast.error("Failed to submit assignment");
+    if (!submissionText.trim() && !selectedFile) {
+      toast.error("Please enter text or attach a file");
       return;
     }
 
-    toast.success("Assignment submitted successfully!");
-    setSelectedAssignment(null);
-    setSubmissionText("");
-    fetchSubmissions();
+    setUploading(true);
+    let fileUrl: string | null = null;
+
+    try {
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split(".").pop();
+        const fileName = `${selectedAssignment.id}-${Date.now()}.${fileExt}`;
+        const filePath = `submissions/${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("assignments")
+          .upload(filePath, selectedFile);
+
+        if (uploadError) {
+          toast.error("Failed to upload file");
+          setUploading(false);
+          return;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from("assignments")
+          .getPublicUrl(filePath);
+
+        fileUrl = urlData.publicUrl;
+      }
+
+      const { error } = await supabase
+        .from("assignment_submissions")
+        .insert({
+          assignment_id: selectedAssignment.id,
+          student_id: user.id,
+          submission_text: submissionText.trim() || null,
+          file_url: fileUrl,
+          status: "pending"
+        });
+
+      if (error) {
+        toast.error("Failed to submit assignment");
+        return;
+      }
+
+      toast.success("Assignment submitted successfully!");
+      setSelectedAssignment(null);
+      setSubmissionText("");
+      setSelectedFile(null);
+      fetchSubmissions();
+    } finally {
+      setUploading(false);
+    }
   };
 
   const getStatusBadge = (submission: Submission | undefined) => {
@@ -216,7 +267,7 @@ export function AssignmentViewer({ courses }: AssignmentViewerProps) {
         )}
 
         {/* Submit Dialog */}
-        <Dialog open={!!selectedAssignment} onOpenChange={(open) => !open && setSelectedAssignment(null)}>
+        <Dialog open={!!selectedAssignment} onOpenChange={(open) => { if (!open) { setSelectedAssignment(null); setSelectedFile(null); setSubmissionText(""); } }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Submit Assignment</DialogTitle>
@@ -235,13 +286,38 @@ export function AssignmentViewer({ courses }: AssignmentViewerProps) {
                     value={submissionText}
                     onChange={(e) => setSubmissionText(e.target.value)}
                     placeholder="Enter your assignment response..."
-                    rows={6}
+                    rows={4}
                   />
                 </div>
+                <div>
+                  <Label>Attach File (optional)</Label>
+                  <Input
+                    ref={fileInputRef}
+                    type="file"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg"
+                  />
+                  {selectedFile ? (
+                    <div className="flex items-center gap-2 p-2 border rounded-lg mt-1">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm flex-1 truncate">{selectedFile.name}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedFile(null)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" className="w-full mt-1" onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="h-4 w-4 mr-2" /> Choose File
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">Max 10MB • PDF, DOC, DOCX, TXT, PNG, JPG</p>
+                </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setSelectedAssignment(null)}>Cancel</Button>
-                  <Button onClick={handleSubmit}>
-                    <Send className="h-4 w-4 mr-1" /> Submit
+                  <Button variant="outline" onClick={() => setSelectedAssignment(null)} disabled={uploading}>Cancel</Button>
+                  <Button onClick={handleSubmit} disabled={uploading}>
+                    {uploading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+                    {uploading ? "Uploading..." : "Submit"}
                   </Button>
                 </div>
               </div>
@@ -269,12 +345,22 @@ export function AssignmentViewer({ courses }: AssignmentViewerProps) {
                     </div>
                   </div>
                 )}
-                <div>
-                  <Label>Your Submission</Label>
-                  <div className="bg-muted/50 p-3 rounded mt-1 text-sm">
-                    {viewingFeedback.submission_text}
+                {viewingFeedback.submission_text && (
+                  <div>
+                    <Label>Your Submission</Label>
+                    <div className="bg-muted/50 p-3 rounded mt-1 text-sm">
+                      {viewingFeedback.submission_text}
+                    </div>
                   </div>
-                </div>
+                )}
+                {viewingFeedback.file_url && (
+                  <div>
+                    <Label>Attached File</Label>
+                    <a href={viewingFeedback.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary underline text-sm mt-1">
+                      <FileText className="h-4 w-4" /> View Attached File
+                    </a>
+                  </div>
+                )}
                 <Button className="w-full" onClick={() => setViewingFeedback(null)}>Close</Button>
               </div>
             )}
