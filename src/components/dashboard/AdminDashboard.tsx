@@ -10,7 +10,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BookOpen, Users, GraduationCap, LogOut, User, Shield, UserCheck } from "lucide-react";
+import { BookOpen, Users, GraduationCap, LogOut, User, Shield, UserCheck, BarChart3, Settings } from "lucide-react";
+import { CourseManager } from "@/components/admin/CourseManager";
+import { TutorAssignment } from "@/components/admin/TutorAssignment";
+import { EnrollmentAnalytics } from "@/components/admin/EnrollmentAnalytics";
 import { toast } from "sonner";
 
 interface Profile {
@@ -240,13 +243,37 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="users" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="students">Students</TabsTrigger>
-            <TabsTrigger value="tutors">Tutors</TabsTrigger>
-            <TabsTrigger value="enrollments">Enrollments</TabsTrigger>
+        <Tabs defaultValue="courses" className="space-y-4">
+          <TabsList className="flex-wrap">
+            <TabsTrigger value="courses">
+              <BookOpen className="mr-1 h-4 w-4" />
+              Courses
+            </TabsTrigger>
+            <TabsTrigger value="tutors-assign">
+              <UserCheck className="mr-1 h-4 w-4" />
+              Tutor Assignment
+            </TabsTrigger>
+            <TabsTrigger value="users">
+              <Users className="mr-1 h-4 w-4" />
+              Users
+            </TabsTrigger>
+            <TabsTrigger value="students">
+              <GraduationCap className="mr-1 h-4 w-4" />
+              Students
+            </TabsTrigger>
+            <TabsTrigger value="analytics">
+              <BarChart3 className="mr-1 h-4 w-4" />
+              Analytics
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="courses">
+            <CourseManager />
+          </TabsContent>
+
+          <TabsContent value="tutors-assign">
+            <TutorAssignment />
+          </TabsContent>
 
           <TabsContent value="users">
             <Card>
@@ -336,64 +363,8 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="tutors">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tutors</CardTitle>
-                <CardDescription>All registered tutors</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {tutors.map((t) => (
-                    <div key={t.user_id} className="flex items-center gap-3 p-4 border rounded-lg">
-                      <Avatar>
-                        <AvatarImage src={t.profile?.avatar_url || ""} />
-                        <AvatarFallback className="bg-accent/20">
-                          {t.profile ? getInitials(t.profile.full_name) : "T"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{t.profile?.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{t.profile?.email}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="enrollments">
-            <Card>
-              <CardHeader>
-                <CardTitle>Enrollments</CardTitle>
-                <CardDescription>All course enrollments</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Course</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Progress</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {enrollments.map((e) => (
-                      <TableRow key={e.id}>
-                        <TableCell>{e.student_profile?.full_name}</TableCell>
-                        <TableCell>{e.course_title}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{e.status}</Badge>
-                        </TableCell>
-                        <TableCell>{e.progress}%</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+          <TabsContent value="analytics">
+            <EnrollmentAnalytics />
           </TabsContent>
         </Tabs>
       </div>
