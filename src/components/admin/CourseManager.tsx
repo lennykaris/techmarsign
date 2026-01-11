@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Layers } from "lucide-react";
 import { toast } from "sonner";
+import { PhaseManager } from "./PhaseManager";
 
 interface Course {
   id: string;
@@ -21,6 +22,7 @@ interface Course {
   price: number | null;
   is_active: boolean;
   image_url: string | null;
+  phase_count?: number;
 }
 
 interface CourseFormData {
@@ -52,22 +54,41 @@ export function CourseManager() {
   const [deletingCourse, setDeletingCourse] = useState<Course | null>(null);
   const [formData, setFormData] = useState<CourseFormData>(defaultFormData);
   const [saving, setSaving] = useState(false);
+  const [managingPhasesFor, setManagingPhasesFor] = useState<Course | null>(null);
 
   useEffect(() => {
     fetchCourses();
   }, []);
 
   const fetchCourses = async () => {
-    const { data, error } = await supabase
+    // Fetch courses with phase count
+    const { data: coursesData, error: coursesError } = await supabase
       .from("courses")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error) {
+    if (coursesError) {
       toast.error("Failed to fetch courses");
-    } else {
-      setCourses(data || []);
+      setLoading(false);
+      return;
     }
+
+    // Fetch phase counts for all courses
+    const { data: phasesData } = await supabase
+      .from("course_phases")
+      .select("course_id");
+
+    const phaseCounts: Record<string, number> = {};
+    phasesData?.forEach(p => {
+      phaseCounts[p.course_id] = (phaseCounts[p.course_id] || 0) + 1;
+    });
+
+    const coursesWithPhases = (coursesData || []).map(course => ({
+      ...course,
+      phase_count: phaseCounts[course.id] || 0
+    }));
+
+    setCourses(coursesWithPhases);
     setLoading(false);
   };
 
@@ -176,12 +197,30 @@ export function CourseManager() {
     }
   };
 
+  // If managing phases for a course, show the PhaseManager
+  if (managingPhasesFor) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <PhaseManager
+            courseId={managingPhasesFor.id}
+            courseTitle={managingPhasesFor.title}
+            onBack={() => {
+              setManagingPhasesFor(null);
+              fetchCourses(); // Refresh to update phase counts
+            }}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Course Management</CardTitle>
-          <CardDescription>Create, edit, and manage courses</CardDescription>
+          <CardDescription>Create, edit, and manage courses with phases</CardDescription>
         </div>
         <Button onClick={handleOpenCreate}>
           <Plus className="mr-2 h-4 w-4" />
@@ -199,6 +238,7 @@ export function CourseManager() {
                 <TableHead>Category</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead>Price</TableHead>
+                <TableHead>Phases</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -210,6 +250,17 @@ export function CourseManager() {
                   <TableCell>{course.category}</TableCell>
                   <TableCell>{course.duration || "-"}</TableCell>
                   <TableCell>{course.price ? `$${course.price}` : "Free"}</TableCell>
+                  <TableCell>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-1"
+                      onClick={() => setManagingPhasesFor(course)}
+                    >
+                      <Layers className="h-4 w-4" />
+                      {course.phase_count || 0} phases
+                    </Button>
+                  </TableCell>
                   <TableCell>
                     <Badge 
                       variant={course.is_active ? "default" : "secondary"}
