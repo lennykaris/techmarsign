@@ -70,14 +70,35 @@ export function LessonViewer({ courses, onProgressUpdate }: LessonViewerProps) {
       return;
     }
 
-    // Fetch materials for each lesson
+    // Fetch materials for each lesson with signed URLs for private bucket
     const lessonsWithMaterials = await Promise.all(
       (data || []).map(async (lesson) => {
         const { data: materials } = await supabase
           .from("lesson_materials")
           .select("*")
           .eq("lesson_id", lesson.id);
-        return { ...lesson, materials: materials || [] };
+        
+        // Generate signed URLs for each material (since bucket is now private)
+        const materialsWithSignedUrls = await Promise.all(
+          (materials || []).map(async (material) => {
+            // Extract the file path from the full URL
+            const urlParts = material.file_url.split('/lesson-materials/');
+            if (urlParts.length === 2) {
+              const filePath = urlParts[1];
+              const { data: signedData } = await supabase.storage
+                .from('lesson-materials')
+                .createSignedUrl(filePath, 3600); // 1 hour expiry
+              
+              return {
+                ...material,
+                file_url: signedData?.signedUrl || material.file_url
+              };
+            }
+            return material;
+          })
+        );
+        
+        return { ...lesson, materials: materialsWithSignedUrls };
       })
     );
 

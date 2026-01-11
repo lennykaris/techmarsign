@@ -444,6 +444,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_activate_enrollment: {
+        Args: { _enrollment_id: string }
+        Returns: boolean
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -455,6 +459,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      request_enrollment: { Args: { _course_id: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "student" | "tutor"

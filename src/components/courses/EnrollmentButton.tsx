@@ -43,6 +43,10 @@ export function EnrollmentButton({ courseId, courseTitle }: EnrollmentButtonProp
     setShowConfirmDialog(false);
     
     if (result.success) {
+      if (result.pendingPayment) {
+        // Stay on the page for paid courses pending payment
+        return;
+      }
       navigate("/dashboard");
     }
   };
