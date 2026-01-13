@@ -43,6 +43,8 @@ interface EnrollmentData {
   course_title: string;
 }
 
+const PAGE_SIZE = 50;
+
 export default function AdminDashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -51,15 +53,20 @@ export default function AdminDashboard() {
   const [courses, setCourses] = useState<CourseData[]>([]);
   const [enrollments, setEnrollments] = useState<EnrollmentData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userPage, setUserPage] = useState(0);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [enrollmentPage, setEnrollmentPage] = useState(0);
+  const [totalEnrollments, setTotalEnrollments] = useState(0);
 
   useEffect(() => {
     if (user) {
       fetchData();
     }
-  }, [user]);
+  }, [user, userPage, enrollmentPage]);
 
   const fetchData = async () => {
     if (!user) return;
+    setLoading(true);
 
     // Fetch admin profile
     const { data: profileData } = await supabase
@@ -70,12 +77,16 @@ export default function AdminDashboard() {
 
     if (profileData) setProfile(profileData);
 
-    // Fetch all users with roles
-    const { data: rolesData } = await supabase
+    // Fetch paginated users with roles
+    const { data: rolesData, count: rolesCount } = await supabase
       .from("user_roles")
-      .select("user_id, role");
+      .select("user_id, role", { count: 'exact' })
+      .range(userPage * PAGE_SIZE, (userPage + 1) * PAGE_SIZE - 1)
+      .order("created_at", { ascending: false });
 
-    if (rolesData) {
+    setTotalUsers(rolesCount || 0);
+
+    if (rolesData && rolesData.length > 0) {
       const userIds = rolesData.map((r: any) => r.user_id);
       const { data: profilesData } = await supabase
         .from("profiles")
@@ -92,17 +103,19 @@ export default function AdminDashboard() {
       });
 
       setUsers(usersWithRoles);
+    } else {
+      setUsers([]);
     }
 
-    // Fetch all courses
+    // Fetch all courses (typically small dataset)
     const { data: coursesData } = await supabase
       .from("courses")
       .select("id, title, category, is_active");
 
     if (coursesData) setCourses(coursesData);
 
-    // Fetch all enrollments
-    const { data: enrollmentsData } = await supabase
+    // Fetch paginated enrollments
+    const { data: enrollmentsData, count: enrollmentsCount } = await supabase
       .from("enrollments")
       .select(`
         id,
@@ -110,10 +123,14 @@ export default function AdminDashboard() {
         progress,
         student_id,
         course:courses(title)
-      `);
+      `, { count: 'exact' })
+      .range(enrollmentPage * PAGE_SIZE, (enrollmentPage + 1) * PAGE_SIZE - 1)
+      .order("enrolled_at", { ascending: false });
 
-    if (enrollmentsData) {
-      const studentIds = enrollmentsData.map((e: any) => e.student_id);
+    setTotalEnrollments(enrollmentsCount || 0);
+
+    if (enrollmentsData && enrollmentsData.length > 0) {
+      const studentIds = [...new Set(enrollmentsData.map((e: any) => e.student_id))];
       const { data: studentProfiles } = await supabase
         .from("profiles")
         .select("user_id, full_name, email, avatar_url")
@@ -131,6 +148,8 @@ export default function AdminDashboard() {
       });
 
       setEnrollments(enrichedEnrollments);
+    } else {
+      setEnrollments([]);
     }
 
     setLoading(false);
@@ -210,7 +229,7 @@ export default function AdminDashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{users.length}</div>
+              <div className="text-2xl font-bold">{totalUsers}</div>
             </CardContent>
           </Card>
           <Card>
@@ -285,52 +304,78 @@ export default function AdminDashboard() {
                 {loading ? (
                   <p className="text-muted-foreground">Loading...</p>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((u) => (
-                        <TableRow key={u.user_id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={u.profile?.avatar_url || ""} />
-                                <AvatarFallback className="text-xs">
-                                  {u.profile ? getInitials(u.profile.full_name) : "U"}
-                                </AvatarFallback>
-                              </Avatar>
-                              {u.profile?.full_name}
-                            </div>
-                          </TableCell>
-                          <TableCell>{u.profile?.email}</TableCell>
-                          <TableCell>
-                            <Badge className={getRoleBadgeColor(u.role)}>{u.role}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={u.role}
-                              onValueChange={(value: "admin" | "student" | "tutor") => handleRoleChange(u.user_id, value)}
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="student">Student</SelectItem>
-                                <SelectItem value="tutor">Tutor</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
+                  <>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>User</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {users.map((u) => (
+                          <TableRow key={u.user_id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage src={u.profile?.avatar_url || ""} />
+                                  <AvatarFallback className="text-xs">
+                                    {u.profile ? getInitials(u.profile.full_name) : "U"}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {u.profile?.full_name}
+                              </div>
+                            </TableCell>
+                            <TableCell>{u.profile?.email}</TableCell>
+                            <TableCell>
+                              <Badge className={getRoleBadgeColor(u.role)}>{u.role}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={u.role}
+                                onValueChange={(value: "admin" | "student" | "tutor") => handleRoleChange(u.user_id, value)}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="student">Student</SelectItem>
+                                  <SelectItem value="tutor">Tutor</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    {/* Pagination controls for users */}
+                    <div className="flex items-center justify-between mt-4">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {userPage * PAGE_SIZE + 1} - {Math.min((userPage + 1) * PAGE_SIZE, totalUsers)} of {totalUsers} users
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUserPage(p => Math.max(0, p - 1))}
+                          disabled={userPage === 0}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUserPage(p => p + 1)}
+                          disabled={(userPage + 1) * PAGE_SIZE >= totalUsers}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

@@ -9,8 +9,57 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ClipboardList, Clock, CheckCircle, Send, MessageSquare, Upload, FileText, X, Loader2 } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle, Send, MessageSquare, Upload, FileText, X, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+
+// Helper component for viewing submission files with signed URLs
+function ViewSubmissionFile({ fileUrl }: { fileUrl: string }) {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleViewFile = async () => {
+    setLoading(true);
+    try {
+      // Extract file path from URL if it's a full URL, otherwise use as-is
+      let filePath = fileUrl;
+      if (fileUrl.includes('/storage/v1/object/public/assignments/')) {
+        const parts = fileUrl.split('/public/assignments/');
+        if (parts.length === 2) {
+          filePath = parts[1];
+        }
+      }
+
+      const { data, error } = await supabase.storage
+        .from('assignments')
+        .createSignedUrl(filePath, 3600);
+
+      if (error || !data?.signedUrl) {
+        toast.error("Failed to access file");
+        return;
+      }
+
+      setSignedUrl(data.signedUrl);
+      window.open(data.signedUrl, '_blank');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <Label>Attached File</Label>
+      <Button
+        variant="link"
+        className="flex items-center gap-2 text-primary p-0 h-auto mt-1"
+        onClick={handleViewFile}
+        disabled={loading}
+      >
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+        View Attached File
+      </Button>
+    </div>
+  );
+}
 
 interface Assignment {
   id: string;
@@ -114,19 +163,27 @@ export function AssignmentViewer({ courses }: AssignmentViewerProps) {
       return;
     }
 
-    if (!submissionText.trim() && !selectedFile) {
+    const trimmedText = submissionText.trim();
+    
+    if (!trimmedText && !selectedFile) {
       toast.error("Please enter text or attach a file");
       return;
     }
 
+    // Input validation - max 10,000 characters for submission text
+    if (trimmedText && trimmedText.length > 10000) {
+      toast.error("Submission text is too long (max 10,000 characters)");
+      return;
+    }
+
     setUploading(true);
-    let fileUrl: string | null = null;
+    let filePath: string | null = null;
 
     try {
       if (selectedFile) {
         const fileExt = selectedFile.name.split(".").pop();
         const fileName = `${selectedAssignment.id}-${Date.now()}.${fileExt}`;
-        const filePath = `submissions/${user.id}/${fileName}`;
+        filePath = `submissions/${user.id}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("assignments")
@@ -137,21 +194,16 @@ export function AssignmentViewer({ courses }: AssignmentViewerProps) {
           setUploading(false);
           return;
         }
-
-        const { data: urlData } = supabase.storage
-          .from("assignments")
-          .getPublicUrl(filePath);
-
-        fileUrl = urlData.publicUrl;
       }
 
+      // Store file path instead of public URL for security
       const { error } = await supabase
         .from("assignment_submissions")
         .insert({
           assignment_id: selectedAssignment.id,
           student_id: user.id,
-          submission_text: submissionText.trim() || null,
-          file_url: fileUrl,
+          submission_text: trimmedText || null,
+          file_url: filePath,
           status: "pending"
         });
 
@@ -354,12 +406,7 @@ export function AssignmentViewer({ courses }: AssignmentViewerProps) {
                   </div>
                 )}
                 {viewingFeedback.file_url && (
-                  <div>
-                    <Label>Attached File</Label>
-                    <a href={viewingFeedback.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary underline text-sm mt-1">
-                      <FileText className="h-4 w-4" /> View Attached File
-                    </a>
-                  </div>
+                  <ViewSubmissionFile fileUrl={viewingFeedback.file_url} />
                 )}
                 <Button className="w-full" onClick={() => setViewingFeedback(null)}>Close</Button>
               </div>

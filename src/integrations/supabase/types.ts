@@ -195,6 +195,30 @@ export type Database = {
         }
         Relationships: []
       }
+      enrollment_attempts: {
+        Row: {
+          attempted_at: string | null
+          course_id: string
+          id: string
+          success: boolean
+          user_id: string
+        }
+        Insert: {
+          attempted_at?: string | null
+          course_id: string
+          id?: string
+          success: boolean
+          user_id: string
+        }
+        Update: {
+          attempted_at?: string | null
+          course_id?: string
+          id?: string
+          success?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       enrollments: {
         Row: {
           completed_at: string | null
@@ -385,6 +409,33 @@ export type Database = {
           id?: string
           phone?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      role_change_audit: {
+        Row: {
+          changed_at: string | null
+          changed_by: string
+          id: string
+          new_role: Database["public"]["Enums"]["app_role"]
+          old_role: Database["public"]["Enums"]["app_role"] | null
+          user_id: string
+        }
+        Insert: {
+          changed_at?: string | null
+          changed_by: string
+          id?: string
+          new_role: Database["public"]["Enums"]["app_role"]
+          old_role?: Database["public"]["Enums"]["app_role"] | null
+          user_id: string
+        }
+        Update: {
+          changed_at?: string | null
+          changed_by?: string
+          id?: string
+          new_role?: Database["public"]["Enums"]["app_role"]
+          old_role?: Database["public"]["Enums"]["app_role"] | null
           user_id?: string
         }
         Relationships: []

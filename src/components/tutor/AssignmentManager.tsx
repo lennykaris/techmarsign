@@ -64,15 +64,29 @@ export function AssignmentManager({ courses }: AssignmentManagerProps) {
   };
 
   const handleSubmit = async () => {
-    if (!selectedCourse || !formData.title.trim()) {
+    const trimmedTitle = formData.title.trim();
+    const trimmedDescription = formData.description.trim();
+    
+    if (!selectedCourse || !trimmedTitle) {
       toast.error("Please fill in required fields");
+      return;
+    }
+
+    // Input validation - enforce length limits
+    if (trimmedTitle.length > 200) {
+      toast.error("Title is too long (max 200 characters)");
+      return;
+    }
+
+    if (trimmedDescription && trimmedDescription.length > 5000) {
+      toast.error("Description is too long (max 5,000 characters)");
       return;
     }
 
     const assignmentData = {
       course_id: selectedCourse,
-      title: formData.title.trim(),
-      description: formData.description.trim() || null,
+      title: trimmedTitle,
+      description: trimmedDescription || null,
       phase_number: formData.phase_number,
       due_days: formData.due_days,
       max_score: formData.max_score

@@ -89,17 +89,50 @@ export function LessonManager({ courses }: LessonManagerProps) {
     setLessons(lessonsWithMaterials);
   };
 
+  // Validate video URL is from allowed domains
+  const isValidVideoUrl = (url: string): boolean => {
+    if (!url) return true;
+    const allowedPatterns = [
+      /^https:\/\/(www\.)?youtube\.com\//,
+      /^https:\/\/youtu\.be\//,
+      /^https:\/\/(www\.)?vimeo\.com\//,
+      /^https:\/\/player\.vimeo\.com\//,
+    ];
+    return allowedPatterns.some(pattern => pattern.test(url));
+  };
+
   const handleSubmit = async () => {
-    if (!selectedCourse || !formData.title.trim()) {
+    const trimmedTitle = formData.title.trim();
+    const trimmedContent = formData.content.trim();
+    const trimmedVideoUrl = formData.video_url.trim();
+    
+    if (!selectedCourse || !trimmedTitle) {
       toast.error("Please fill in required fields");
+      return;
+    }
+
+    // Input validation - enforce length limits
+    if (trimmedTitle.length > 200) {
+      toast.error("Title is too long (max 200 characters)");
+      return;
+    }
+
+    if (trimmedContent && trimmedContent.length > 50000) {
+      toast.error("Content is too long (max 50,000 characters)");
+      return;
+    }
+
+    // Validate video URL domain
+    if (trimmedVideoUrl && !isValidVideoUrl(trimmedVideoUrl)) {
+      toast.error("Video URL must be from YouTube or Vimeo");
       return;
     }
 
     const lessonData = {
       course_id: selectedCourse,
-      title: formData.title.trim(),
-      content: formData.content.trim() || null,
-      video_url: formData.video_url.trim() || null,
+      title: trimmedTitle,
+      content: trimmedContent || null,
+      video_url: trimmedVideoUrl || null,
       phase_number: formData.phase_number,
       order_index: formData.order_index
     };
@@ -189,16 +222,13 @@ export function LessonManager({ courses }: LessonManagerProps) {
       return;
     }
 
-    const { data: urlData } = supabase.storage
-      .from("lesson-materials")
-      .getPublicUrl(filePath);
-
+    // Store file path instead of public URL for security
     const { error: insertError } = await supabase
       .from("lesson_materials")
       .insert({
         lesson_id: selectedLessonForMaterials.id,
         file_name: file.name,
-        file_url: urlData.publicUrl,
+        file_url: filePath,
         file_type: file.type,
         file_size: file.size
       });

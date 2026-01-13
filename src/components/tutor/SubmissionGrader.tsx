@@ -8,8 +8,61 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, Clock, FileText, MessageSquare } from "lucide-react";
+import { CheckCircle, Clock, FileText, MessageSquare, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+
+// Helper to get signed URL for submission files
+async function getSignedUrl(fileUrl: string): Promise<string | null> {
+  // Extract file path from URL if it's a full URL, otherwise use as-is
+  let filePath = fileUrl;
+  if (fileUrl.includes('/storage/v1/object/public/assignments/')) {
+    const parts = fileUrl.split('/public/assignments/');
+    if (parts.length === 2) {
+      filePath = parts[1];
+    }
+  }
+
+  const { data, error } = await supabase.storage
+    .from('assignments')
+    .createSignedUrl(filePath, 3600);
+
+  if (error || !data?.signedUrl) {
+    return null;
+  }
+
+  return data.signedUrl;
+}
+
+// ViewFileButton component for secure file access
+function ViewFileButton({ fileUrl }: { fileUrl: string }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleViewFile = async () => {
+    setLoading(true);
+    try {
+      const signedUrl = await getSignedUrl(fileUrl);
+      if (signedUrl) {
+        window.open(signedUrl, '_blank');
+      } else {
+        toast.error("Failed to access file");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="link"
+      className="flex items-center gap-1 text-primary text-sm p-0 h-auto"
+      onClick={handleViewFile}
+      disabled={loading}
+    >
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+      View attached file
+    </Button>
+  );
+}
 
 interface Submission {
   id: string;
@@ -187,9 +240,7 @@ export function SubmissionGrader({ courses }: SubmissionGraderProps) {
                   </div>
                 )}
                 {submission.file_url && (
-                  <a href={submission.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary text-sm mb-2 hover:underline">
-                    <FileText className="h-4 w-4" /> View attached file
-                  </a>
+                  <ViewFileButton fileUrl={submission.file_url} />
                 )}
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">
@@ -237,9 +288,7 @@ export function SubmissionGrader({ courses }: SubmissionGraderProps) {
                 {selectedSubmission.file_url && (
                   <div>
                     <Label>Attached File</Label>
-                    <a href={selectedSubmission.file_url} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm flex items-center gap-1">
-                      <FileText className="h-4 w-4" /> View File
-                    </a>
+                    <ViewFileButton fileUrl={selectedSubmission.file_url} />
                   </div>
                 )}
                 <div>
